@@ -1,4 +1,7 @@
-use std::io::{Read, Write};
+use std::{
+    borrow::Cow,
+    io::{Read, Write},
+};
 
 pub trait CodecRead: Sized {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self>;
@@ -133,6 +136,69 @@ impl<T: CodecWrite> CodecWrite for Vec2D<T> {
     }
 }
 
+#[derive(Debug)]
+pub struct FixedString<'s, const N: usize> {
+    pub inner: Cow<'s, str>,
+}
+impl<'s, const N: usize> CodecRead for FixedString<'s, N> {
+    fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
+        let mut name_buf = [0u8; N];
+        reader.read_exact(&mut name_buf)?;
+        let name_len = name_buf.iter().position(|b| *b == 0).unwrap_or(N);
+        let name = str::from_utf8(&name_buf[..name_len])
+            .map_err(std::io::Error::other)?
+            .to_string();
+        Ok(Self { inner: name.into() })
+    }
+}
+impl<'s, const N: usize> CodecWrite for FixedString<'s, N> {
+    fn codec_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
+        let mut name_buf = [0u8; N];
+        name_buf[0..self.inner.len()].copy_from_slice(self.inner.as_bytes());
+        writer.write_all(&name_buf)?;
+        Ok(())
+    }
+
+    fn codec_len(&self) -> usize {
+        N
+    }
+}
+
+#[derive(Debug)]
+#[apply(CodecReadDerive)]
+#[apply(CodecWriteDerive)]
+pub(crate) struct Header {
+    pub name: FixedString<'static, 32>,
+    pub body_len: i32,
+    pub response: u16,
+    _pad: u16,
+}
+impl Header {
+    pub fn new(name: &'static str, body_len: usize) -> Self {
+        Self {
+            name: FixedString { inner: name.into() },
+            body_len: body_len as i32,
+            response: 1,
+            _pad: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[apply(CodecReadDerive)]
+pub(crate) struct Footer {
+    pub status: u32,
+    pub description: String,
+}
+impl Footer {
+    pub fn into_result(self) -> NanonisTcpResult<()> {
+        match self.status {
+            0 => Ok(()),
+            _ => Err(NanonisTcpError::Api(self.description)),
+        }
+    }
+}
+
 macro_rules! CodecWriteDerive {
     (
         $(#[$attr:meta])*
@@ -198,3 +264,6 @@ macro_rules! CodecReadDerive {
     };
 }
 pub(crate) use CodecReadDerive;
+use macro_rules_attribute::apply;
+
+use crate::error::{NanonisTcpError, NanonisTcpResult};
