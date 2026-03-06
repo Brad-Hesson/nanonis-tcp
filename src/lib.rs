@@ -14,8 +14,8 @@ mod tests {
 
     #[test]
     fn blocking() {
-        let mut nanonis = blocking::NanonisTcp::new("glacier:6502");
-        let props = nanonis.scan_props_get().unwrap();
+        let mut nanonis = blocking::NanonisTcp::new("glacier:6501").unwrap();
+        let props = nanonis.scan_props_get();
         nanonis.scan_frame_data_grab(0, 0).ok();
         nanonis.scan_frame_data_grab(1, 0).ok();
         println!("{props:?}")

@@ -10,11 +10,11 @@ pub struct NanonisTcp {
     buf: Vec<u8>,
 }
 impl NanonisTcp {
-    pub fn new(addr: impl ToSocketAddrs) -> Self {
-        Self {
-            stream: TcpStream::connect(addr).unwrap(),
+    pub fn new(addr: impl ToSocketAddrs) -> std::io::Result<Self> {
+        Ok(Self {
+            stream: TcpStream::connect(addr)?,
             buf: Vec::new(),
-        }
+        })
     }
     pub fn bias_set(&mut self, bias: f32) -> NanonisTcpResult<()> {
         self.call::<bias::Set>(&bias::SetArgs { bias })

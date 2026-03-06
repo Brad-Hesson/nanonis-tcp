@@ -62,7 +62,7 @@ impl CodecRead for String {
         let len = i32::codec_read(reader)?;
         let mut buf = vec![0u8; len as usize];
         reader.read_exact(&mut buf)?;
-        Ok(String::from_utf8(buf).map_err(std::io::Error::other)?)
+        String::from_utf8(buf).map_err(std::io::Error::other)
     }
 }
 impl CodecWrite for String {
@@ -140,7 +140,7 @@ impl<T: CodecWrite> CodecWrite for Vec2D<T> {
 pub struct FixedString<'s, const N: usize> {
     pub inner: Cow<'s, str>,
 }
-impl<'s, const N: usize> CodecRead for FixedString<'s, N> {
+impl<const N: usize> CodecRead for FixedString<'_, N> {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
         let mut name_buf = [0u8; N];
         reader.read_exact(&mut name_buf)?;
@@ -151,7 +151,7 @@ impl<'s, const N: usize> CodecRead for FixedString<'s, N> {
         Ok(Self { inner: name.into() })
     }
 }
-impl<'s, const N: usize> CodecWrite for FixedString<'s, N> {
+impl<const N: usize> CodecWrite for FixedString<'_, N> {
     fn codec_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
         let mut name_buf = [0u8; N];
         name_buf[0..self.inner.len()].copy_from_slice(self.inner.as_bytes());

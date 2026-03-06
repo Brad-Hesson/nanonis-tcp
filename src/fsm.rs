@@ -33,7 +33,7 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C> {
             })?;
         }
         Ok(NanonisTcpFsm {
-            buf: buf,
+            buf,
             _phantom: PhantomData,
         })
     }
@@ -69,7 +69,7 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C, WantsHeader> {
         })
     }
 }
-impl<'b, C: Command> NanonisTcpFsm<'b, C, WantsBody> {
+impl<C: Command> NanonisTcpFsm<'_, C, WantsBody> {
     pub fn bytes_mut(&mut self) -> &mut [u8] {
         self.buf.as_mut_slice()
     }
