@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use macro_rules_attribute::apply;
 
 use crate::{
+    ActionType, ScanDir,
     codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
     commands::Command,
 };
@@ -17,9 +20,9 @@ impl Command for Action {
 pub struct ActionArgs {
     /// sets which action to perform, where 0=Start, 1=Stop, 2=Pause, 3=Resume,
     /// 4=Freeze, 5=Unfreeze, 6=Go to Center
-    pub action: u16,
+    pub action: ActionType,
     /// if 1, scan direction is set to up. If 0, direction is down
-    pub dir: u32,
+    pub dir: ScanDir,
 }
 
 /// Returns if the scan is running or not.
@@ -47,7 +50,7 @@ impl Command for WaitEndOfLine {
 #[apply(CodecWriteDerive)]
 pub struct WaitEndOfLineArgs {
     /// sets how many milliseconds this function waits for an End-of-Scan. If –1, it waits indefinitely
-    pub timeout: i32,
+    pub timeout: Option<Duration>,
 }
 #[derive(Debug)]
 #[apply(CodecReadDerive)]

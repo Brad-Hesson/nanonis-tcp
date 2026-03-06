@@ -1,8 +1,10 @@
 use std::io::{Read as _, Write as _};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::time::Duration;
 
 use crate::error::NanonisTcpResult;
 use crate::fsm::NanonisTcpFsm;
+use crate::{ActionType, ScanDir};
 use crate::{commands::Command, commands::*};
 
 pub struct NanonisTcp {
@@ -16,7 +18,7 @@ impl NanonisTcp {
             buf: Vec::new(),
         })
     }
-    pub fn scan_action(&mut self, action: u16, dir: u32) -> NanonisTcpResult<()> {
+    pub fn scan_action(&mut self, action: ActionType, dir: ScanDir) -> NanonisTcpResult<()> {
         self.call::<scan::Action>(&scan::ActionArgs { action, dir })
     }
     pub fn scan_status_get(&mut self) -> NanonisTcpResult<scan::StatusGetResponse> {
@@ -24,7 +26,7 @@ impl NanonisTcp {
     }
     pub fn scan_wait_end_of_line(
         &mut self,
-        timeout: i32,
+        timeout: Option<Duration>,
     ) -> NanonisTcpResult<scan::WaitEndOfLineResponse> {
         self.call::<scan::WaitEndOfLine>(&scan::WaitEndOfLineArgs { timeout })
     }

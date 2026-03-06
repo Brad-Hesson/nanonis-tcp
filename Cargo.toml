@@ -8,6 +8,7 @@ tokio = ["dep:tokio"]
 
 [dependencies]
 macro_rules_attribute = "0.2.2"
+num_enum = "0.7.5"
 thiserror = "2.0.18"
 tokio = { version = "1.50.0", default-features = false, features = [
     "io-util",

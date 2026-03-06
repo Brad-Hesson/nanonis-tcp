@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use tokio::{
     io::{AsyncReadExt as _, AsyncWriteExt as _},
     net::{TcpStream, ToSocketAddrs},
 };
 
-use crate::error::NanonisTcpResult;
-use crate::fsm::NanonisTcpFsm;
+use crate::{ActionType, error::NanonisTcpResult};
+use crate::{ScanDir, fsm::NanonisTcpFsm};
 use crate::{commands::Command, commands::*};
 
 pub struct NanonisTcp {
@@ -18,7 +20,7 @@ impl NanonisTcp {
             buf: Vec::new(),
         })
     }
-    pub async fn scan_action(&mut self, action: u16, dir: u32) -> NanonisTcpResult<()> {
+    pub async fn scan_action(&mut self, action: ActionType, dir: ScanDir) -> NanonisTcpResult<()> {
         self.call::<scan::Action>(&scan::ActionArgs { action, dir })
             .await
     }
@@ -27,7 +29,7 @@ impl NanonisTcp {
     }
     pub async fn scan_wait_end_of_line(
         &mut self,
-        timeout: i32,
+        timeout: Option<Duration>,
     ) -> NanonisTcpResult<scan::WaitEndOfLineResponse> {
         self.call::<scan::WaitEndOfLine>(&scan::WaitEndOfLineArgs { timeout })
             .await
