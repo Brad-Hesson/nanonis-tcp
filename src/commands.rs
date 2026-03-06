@@ -1,76 +1,50 @@
-use std::fmt::Debug;
+use macro_rules_attribute::apply;
 
-use binrw::{binread, binwrite};
-
-use crate::Command;
+use crate::{
+    Command,
+    codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
+};
 
 // *********************
 // * ScanBufferGet *
 // *********************
 
 pub struct ScanBufferGet;
-#[binread]
+impl Command for ScanBufferGet {
+    const NAME: &'static str = "Scan.BufferGet";
+    type Args = ();
+    type Response = ScanBufferGetResponse;
+}
 #[derive(Debug)]
-pub struct ScanBufferGetResp {
-    #[br(temp)]
-    channels_num: i32,
-    #[br(count = channels_num)]
+#[apply(CodecReadDerive)]
+pub struct ScanBufferGetResponse {
     pub channel_indexes: Vec<i32>,
     pub px_per_line: i32,
     pub num_lines: i32,
 }
-impl Command for ScanBufferGet {
-    const NAME: &'static str = "Scan.BufferGet";
-    type Request = ();
-    type Response = ScanBufferGetResp;
-}
 
-// *********************
-// * ScanPropsGet *
-// *********************
+// **********************
+// *    ScanPropsGet    *
+// **********************
 
 pub struct ScanPropsGet;
-#[binread]
+impl Command for ScanPropsGet {
+    const NAME: &'static str = "Scan.PropsGet";
+    type Args = ();
+    type Response = ScanPropsGetResponse;
+}
+#[apply(CodecReadDerive)]
 #[derive(Debug)]
-pub struct ScanPropsGetResp {
+pub struct ScanPropsGetResponse {
     pub continuous_scan: u32,
     pub bouncy_scan: u32,
     pub autosave: u32,
-    #[br(map = |p: PrefixString| p.inner)]
     pub series_name: String,
-    #[br(map = |p: PrefixString| p.inner)]
     pub comment: String,
-    
-    #[br(temp)]
-    pub modules_names_size: i32,
-    #[br(temp)]
-    pub modules_names_number: i32,
-    #[br(count = modules_names_number, map = |s: Vec<PrefixString>| s.into_iter().map(|s| s.inner).collect())]
+    _modules_names_size: i32,
     pub modules_names: Vec<String>,
-    
-    #[br(temp)]
-    pub params_per_mod_len: i32,
-    #[br(count = params_per_mod_len)]
-    #[br(dbg)]
     pub params_per_mod: Vec<i32>,
-    
-    #[br(temp)]
-    #[br(dbg)]
-    pub parameters_rows: i32,
-    #[br(temp, if(parameters_rows > 0))]
-    #[br(dbg)]
-    pub parameters_columns: i32,
-    #[br(dbg)]
-    #[br(if(parameters_rows > 0), count = parameters_rows*parameters_columns + 2, map = |s: Vec<PrefixString>| s.into_iter().map(|s| s.inner).collect())]
-    pub parameters: Vec<String>,
-    
-    #[br(dbg)]
-    pub autopaste: u32,
-}
-impl Command for ScanPropsGet {
-    const NAME: &'static str = "Scan.PropsGet";
-    type Request = ();
-    type Response = ScanPropsGetResp;
+    pub parameters: Vec2D<String>,
 }
 
 // *********************
@@ -78,31 +52,36 @@ impl Command for ScanPropsGet {
 // *********************
 
 pub struct ScanFrameDataGrab;
-#[binwrite]
-pub struct ScanFrameDataGrabReq {
+impl Command for ScanFrameDataGrab {
+    const NAME: &'static str = "Scan.FrameDataGrab";
+    type Args = ScanFrameDataGrabArgs;
+    type Response = ScanFrameDataGrabResponse;
+}
+#[apply(CodecWriteDerive)]
+pub struct ScanFrameDataGrabArgs {
     pub channel_index: u32,
     pub data_dir: u32,
 }
-#[binread]
 #[derive(Debug)]
-pub struct ScanFrameDataGrabResp {
-    #[br(temp)]
-    pub name_len: i32,
-    #[br(count = name_len, map = |b: Vec<u8>| String::from_utf8_lossy(&b).to_string())]
+pub struct ScanFrameDataGrabResponse {
     pub channel_name: String,
-    pub scan_rows: i32,
-    #[br(if(scan_rows > 0))]
-    pub scan_cols: i32,
-    #[br(if(scan_rows > 0))]
-    #[br(count = scan_rows * scan_cols)]
-    pub scan_data: Vec<f32>,
-    #[br(if(scan_rows > 0))]
+    pub scan_data: Vec2D<f32>,
     pub scan_dir: u32,
 }
-impl Command for ScanFrameDataGrab {
-    const NAME: &'static str = "Scan.FrameDataGrab";
-    type Request = ScanFrameDataGrabReq;
-    type Response = ScanFrameDataGrabResp;
+impl CodecRead for ScanFrameDataGrabResponse {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        let channel_name = String::codec_read(reader)?;
+        let scan_data = (!channel_name.is_empty())
+            .then(|| <Vec2D<f32>>::codec_read(reader))
+            .transpose()?
+            .unwrap_or_default();
+        let scan_dir = u32::codec_read(reader)?;
+        Ok(Self {
+            channel_name,
+            scan_data,
+            scan_dir,
+        })
+    }
 }
 
 // *********************
@@ -110,14 +89,14 @@ impl Command for ScanFrameDataGrab {
 // *********************
 
 pub struct BiasSet;
-#[binwrite]
-pub struct BiasSetReq {
-    pub bias: f32,
-}
 impl Command for BiasSet {
     const NAME: &'static str = "Bias.Set";
-    type Request = BiasSetReq;
+    type Args = BiasSetReq;
     type Response = ();
+}
+#[apply(CodecWriteDerive)]
+pub struct BiasSetReq {
+    pub bias: f32,
 }
 
 // *********************
@@ -125,27 +104,14 @@ impl Command for BiasSet {
 // *********************
 
 pub struct SignalsNamesGet;
-#[binread]
-#[derive(Debug)]
-pub struct SignalsNamesGetResp {
-    #[br(temp)]
-    pub names_size: i32,
-    #[br(temp)]
-    pub names_num: i32,
-    #[br(count = names_num, map = |s: Vec<PrefixString>| s.into_iter().map(|s| s.inner).collect())]
-    pub names: Vec<String>,
-}
 impl Command for SignalsNamesGet {
     const NAME: &'static str = "Signals.NamesGet";
-    type Request = ();
-    type Response = SignalsNamesGetResp;
+    type Args = ();
+    type Response = SignalsNamesGetResponse;
 }
-
-#[binread]
 #[derive(Debug)]
-pub struct PrefixString {
-    #[br(temp)]
-    pub len: i32,
-    #[br(count = len, map = |b: Vec<u8>| String::from_utf8_lossy(&b).to_string())]
-    pub inner: String,
+#[apply(CodecReadDerive)]
+pub struct SignalsNamesGetResponse {
+    _names_size: i32,
+    pub names: Vec<String>,
 }

@@ -1,91 +1,104 @@
 use std::{
+    borrow::Cow,
     fmt::Debug,
-    io::{Cursor, Read, Seek, Write},
+    io::{Cursor, Read, Write},
     net::{TcpStream, ToSocketAddrs},
-    thread::panicking,
 };
 
-use binrw::{BinRead, BinWrite, binread, binwrite, io::NoSeek};
+use macro_rules_attribute::apply;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::commands::{BiasSetReq, ScanFrameDataGrab};
+use crate::{
+    codec::{CodecRead, CodecReadDerive, CodecWrite},
+    error::NanonisResult,
+};
 
+mod codec;
 pub mod commands;
+pub mod error;
 
 pub trait Command {
     const NAME: &'static str;
 
-    type Request: for<'a> BinWrite<Args<'a> = ()>;
-    type Response: for<'a> BinRead<Args<'a> = ()>;
+    type Args: CodecWrite;
+    type Response: CodecRead;
 
-    fn write_request<W: Write + Seek>(
-        request: &Self::Request,
-        writer: &mut W,
-    ) -> binrw::BinResult<()> {
-        let mut packet = RequestPacket {
-            name: Self::NAME,
-            response_back: true,
-            body: Vec::new(),
+    fn write(args: &Self::Args, writer: &mut impl Write) -> NanonisResult<usize> {
+        let header = Header {
+            name: Self::NAME.into(),
+            body_size: args.codec_len(),
+            response: true,
         };
-        request.write_be(&mut Cursor::new(&mut packet.body))?;
-        packet.write_be(writer)?;
-        Ok(())
+        header.codec_write(writer)?;
+        args.codec_write(writer)?;
+        Ok(40 + header.body_size)
     }
-    fn read_response_header<R: Read + Seek>(reader: &mut R) -> binrw::BinResult<ResponseHeader> {
-        let header = ResponseHeader::read_be(reader)?;
-        Ok(header)
+
+    fn read(reader: &mut impl Read) -> NanonisResult<Self::Response> {
+        let header = Header::codec_read(reader)?;
+        assert_eq!(header.name, Self::NAME, "response name did not match");
+        let mut buf = vec![0u8; header.body_size];
+        reader.read_exact(&mut buf)?;
+        let mut cur = Cursor::new(&mut buf);
+        let response = Self::Response::codec_read(&mut cur)?;
+        let error = ErrorFooter::codec_read(&mut cur)?;
+        if error.status != 0 {
+            return Err(error::NanonisError::Api(error.description));
+        }
+        assert_eq!(
+            cur.position() as usize,
+            header.body_size,
+            "response body length did not match"
+        );
+        Ok(response)
     }
-    fn read_response_body<R: Read + Seek>(
-        reader: &mut R,
-    ) -> binrw::BinResult<Result<Self::Response, NanonisError>> {
-        let packet = ResponseBody::read_be(reader)?;
-        Ok(match packet.error_status {
-            0 => Ok(packet.body),
-            _ => Err(NanonisError {
-                desc: packet.error_description,
-            }),
+}
+
+#[derive(Debug)]
+struct Header {
+    name: Cow<'static, str>,
+    body_size: usize,
+    response: bool,
+}
+impl CodecRead for Header {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        let mut name_buf = [0u8; 32];
+        reader.read_exact(&mut name_buf)?;
+        let name_len = name_buf.iter().position(|b| *b == 0).unwrap_or(32);
+        let name = str::from_utf8(&name_buf[..name_len])
+            .map_err(std::io::Error::other)?
+            .to_string();
+        let body_size = i32::codec_read(reader)?;
+        let response = u16::codec_read(reader)?;
+        let _ = u16::codec_read(reader)?;
+        Ok(Self {
+            name: name.into(),
+            body_size: body_size as usize,
+            response: response != 0,
         })
     }
 }
+impl CodecWrite for Header {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        let mut name_buf = [0u8; 32];
+        name_buf[0..self.name.len()].copy_from_slice(self.name.as_bytes());
+        writer.write_all(&name_buf)?;
+        i32::codec_write(&(self.body_size as i32), writer)?;
+        u16::codec_write(&(self.response as u16), writer)?;
+        u16::codec_write(&0, writer)?;
+        Ok(())
+    }
 
-#[derive(Debug, thiserror::Error)]
-#[error("Nanonis API error: {desc}")]
-pub struct NanonisError {
-    desc: String,
+    fn codec_len(&self) -> usize {
+        40
+    }
 }
 
-#[binwrite]
 #[derive(Debug)]
-struct RequestPacket {
-    #[bw(map = |s: &&str| s.as_bytes())]
-    #[bw(pad_size_to = 32)]
-    name: &'static str,
-    #[bw(calc = body.len() as i32)]
-    body_len: i32,
-    #[bw(map = |b: &bool| u16::from(*b))]
-    response_back: bool,
-    #[bw(pad_before = 2)]
-    body: Vec<u8>,
-}
-
-#[binread]
-#[derive(Debug)]
-pub struct ResponseHeader {
-    #[br(map = |b: [u8; 32]| String::from_utf8_lossy(&b).to_string())]
-    name: String,
-    #[br(pad_after = 4)]
-    body_size: i32,
-}
-
-#[binread]
-#[derive(Debug)]
-struct ResponseBody<B: for<'a> BinRead<Args<'a> = ()>> {
-    body: B,
-    error_status: u32,
-    #[br(temp)]
-    error_len: i32,
-    #[br(count = error_len)]
-    #[br(map = |b: Vec<u8>| String::from_utf8_lossy(&b).to_string())]
-    error_description: String,
+#[apply(CodecReadDerive)]
+struct ErrorFooter {
+    status: u32,
+    description: String,
 }
 
 #[cfg(test)]
@@ -94,13 +107,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn feature() {
+    fn blocking() {
         let mut nanonis = Nanonis::new("127.0.0.1:6502");
-        let idxs = dbg!(nanonis.scan_buffer_get()).unwrap().channel_indexes;
-        let names = dbg!(nanonis.signals_names_get()).unwrap().names;
-        dbg!(nanonis.scan_props_get()).unwrap();
-        for i in idxs {
-            println!("{}", names[i as usize]);
+        let props = nanonis.call::<commands::ScanPropsGet>(&()).unwrap();
+        nanonis.scan_frame_data_grab(0, 0).ok();
+        nanonis.scan_frame_data_grab(1, 0).ok();
+        println!("{props:?}")
+    }
+
+    #[tokio::test]
+    async fn asink() {
+        let mut nanonis = Nanonis::new("127.0.0.1:6502");
+        loop{
+            let props = nanonis.call::<commands::ScanPropsGet>(&());
+            nanonis.scan_frame_data_grab(0, 0).ok();
+            nanonis.scan_frame_data_grab(1, 0).ok();
+            println!("{props:?}")
         }
     }
 }
@@ -114,30 +136,61 @@ impl Nanonis {
             stream: TcpStream::connect(addr).unwrap(),
         }
     }
-    pub fn bias_set(&mut self, bias: f32) -> Result<(), NanonisError> {
-        self.call::<commands::BiasSet>(&BiasSetReq { bias })
-    }
-    pub fn scan_props_get(&mut self) -> Result<commands::ScanPropsGetResp, NanonisError> {
-        self.call::<commands::ScanPropsGet>(&())
-    }
-    pub fn scan_buffer_get(&mut self) -> Result<commands::ScanBufferGetResp, NanonisError> {
+    // pub fn bias_set(&mut self, bias: f32) -> Result<(), NanonisError> {
+    //     self.call::<commands::BiasSet>(&BiasSetReq { bias })
+    // }
+    // pub fn scan_props_get(&mut self) -> Result<commands::ScanPropsGetResp, NanonisError> {
+    //     self.call::<commands::ScanPropsGet>(&())
+    // }
+    pub fn scan_buffer_get(&mut self) -> NanonisResult<commands::ScanBufferGetResponse> {
         self.call::<commands::ScanBufferGet>(&())
     }
-    pub fn signals_names_get(&mut self) -> Result<commands::SignalsNamesGetResp, NanonisError> {
+    pub fn signals_names_get(&mut self) -> NanonisResult<commands::SignalsNamesGetResponse> {
         self.call::<commands::SignalsNamesGet>(&())
     }
+    pub fn scan_frame_data_grab(
+        &mut self,
+        channel_index: usize,
+        data_dir: usize,
+    ) -> NanonisResult<commands::ScanFrameDataGrabResponse> {
+        self.call::<commands::ScanFrameDataGrab>(&commands::ScanFrameDataGrabArgs {
+            channel_index: channel_index as u32,
+            data_dir: data_dir as u32,
+        })
+    }
+    fn call<C: Command>(&mut self, args: &C::Args) -> NanonisResult<C::Response> {
+        C::write(args, &mut self.stream)?;
+        C::read(&mut self.stream)
+    }
+}
 
-    fn call<C: Command>(&mut self, args: &C::Request) -> Result<C::Response, NanonisError> {
-        let mut write_buf = Vec::new();
-        C::write_request(args, &mut Cursor::new(&mut write_buf)).unwrap();
-        self.stream.write_all(&write_buf).unwrap();
-        self.stream.flush().unwrap();
-        let mut header_buf = vec![0; 40];
-        self.stream.read_exact(&mut header_buf).unwrap();
-        let header = C::read_response_header(&mut Cursor::new(&mut header_buf)).unwrap();
-        let mut body_buf = vec![0; header.body_size as usize];
-        self.stream.read_exact(&mut body_buf).unwrap();
-        let data = C::read_response_body(&mut Cursor::new(&mut body_buf)).unwrap();
-        data
+pub struct NanonisAsync {
+    stream: tokio::net::TcpStream,
+    buf: Box<[u8]>,
+}
+impl NanonisAsync {
+    pub async fn new(addr: impl tokio::net::ToSocketAddrs) -> Self {
+        Self {
+            stream: tokio::net::TcpStream::connect(addr).await.unwrap(),
+            buf: vec![0u8; 1024 * 1024].into_boxed_slice(),
+        }
+    }
+    pub async fn call<C: Command>(&mut self, args: &C::Args) -> NanonisResult<C::Response> {
+        let written = C::write(args, &mut &mut self.buf[..])?;
+        self.stream.write_all(&self.buf[..written]).await?;
+        self.stream.flush().await?;
+        let written = self.stream.read_exact(&mut self.buf[..40]).await?;
+        let header = Header::codec_read(&mut &self.buf[..written])?;
+        let written = self
+            .stream
+            .read_exact(&mut self.buf[..header.body_size])
+            .await?;
+        let mut body = &self.buf[..written];
+        let response = C::Response::codec_read(&mut body)?;
+        let error = ErrorFooter::codec_read(&mut body)?;
+        if error.status != 0 {
+            return Err(error::NanonisError::Api(error.description));
+        }
+        Ok(response)
     }
 }

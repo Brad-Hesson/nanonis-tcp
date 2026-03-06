@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-binrw = "0.15.1"
+macro_rules_attribute = "0.2.2"
 thiserror = "2.0.18"
+tokio = { version = "1.50.0", default-features = false, features = ["io-util", "macros", "net", "rt", "time"] }
