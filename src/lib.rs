@@ -97,6 +97,22 @@ impl CodecWrite for bool {
         size_of::<u32>()
     }
 }
+impl CodecRead for usize {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        i32::codec_read(reader)?
+            .try_into()
+            .map_err(std::io::Error::other)
+    }
+}
+impl CodecWrite for usize {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        (*self as i32).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<i32>()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -129,18 +145,25 @@ mod tests {
         loop {
             let line_status = dbg!(
                 nanonis
-                    .scan_wait_end_of_line(Some(Duration::from_secs(1)))
+                    .scan_wait_end_of_line(Some(Duration::from_millis(100)))
                     .await
                     .unwrap()
             );
             if line_status.timed_out {
                 break;
             }
-            // let data = nanonis.scan_frame_data_grab(30, 0).await.unwrap();
-            // let width = data.scan_data.size[0] as usize;
-            // let line_num = line_status.line_number as usize - 1;
-            // let line = &data.scan_data.data[255..][..width];
-            // println!("{:?}", line);
+            let dir = match line_status.movement_type {
+                ScanMovementType::Forward => 1,
+                ScanMovementType::Backward => 0,
+                _ => unreachable!(),
+            };
+            let data = nanonis.scan_frame_data_grab(0, dir).await.unwrap();
+            let width = data.scan_data.size[0];
+            let line_number = line_status.line_number as usize;
+            println!(
+                "{:?}",
+                &data.scan_data.data[(line_number - 1) * width..][..width]
+            );
         }
     }
 }

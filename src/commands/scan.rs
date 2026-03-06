@@ -63,7 +63,7 @@ pub struct WaitEndOfLineResponse {
     /// frame center (2), or moved to start point of the scan frame right before starting to scan (3)
     pub movement_type: ScanMovementType,
     /// the pass number of the last completed line (relevant when MultiPass is enabled)
-    pub pass_number: i32,
+    pub pass_number: usize,
 }
 
 /// Returns the scan frame parameters.
@@ -104,9 +104,9 @@ pub struct BufferGetResponse {
     /// Controller, use the Signal.NamesGet function, or check the RT Idx value in the Signals Manager module.
     pub channel_indexes: Vec<i32>,
     /// the number of pixels per line
-    pub px_per_line: i32,
+    pub px_per_line: usize,
     /// the number of scan lines
-    pub num_lines: i32,
+    pub num_lines: usize,
 }
 
 /// Returns some of the scan parameters.
@@ -136,7 +136,7 @@ pub struct PropsGetResponse {
     /// an array of modules names strings
     pub modules_names: Vec<String>,
     /// an array containing the number of parameters per module
-    pub params_per_mod: Vec<i32>,
+    pub params_per_mod: Vec<usize>,
     /// returns the parameters that are going to be saved in the header of the image
     /// files. Each row of parameters belongs to a different module.
     pub parameters: Vec2D<String>,
