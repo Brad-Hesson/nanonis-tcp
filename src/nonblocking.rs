@@ -18,6 +18,23 @@ impl NanonisTcp {
             buf: Vec::new(),
         })
     }
+    pub async fn scan_action(&mut self, action: u16, dir: u32) -> NanonisTcpResult<()> {
+        self.call::<scan::Action>(&scan::ActionArgs { action, dir })
+            .await
+    }
+    pub async fn scan_status_get(&mut self) -> NanonisTcpResult<scan::StatusGetResponse> {
+        self.call::<scan::StatusGet>(&()).await
+    }
+    pub async fn scan_wait_end_of_line(
+        &mut self,
+        timeout: i32,
+    ) -> NanonisTcpResult<scan::WaitEndOfLineResponse> {
+        self.call::<scan::WaitEndOfLine>(&scan::WaitEndOfLineArgs { timeout })
+            .await
+    }
+    pub async fn scan_frame_get(&mut self) -> NanonisTcpResult<scan::FrameGetResponse> {
+        self.call::<scan::FrameGet>(&()).await
+    }
     pub async fn bias_set(&mut self, bias: f32) -> NanonisTcpResult<()> {
         self.call::<bias::Set>(&bias::SetArgs { bias }).await
     }
@@ -32,12 +49,12 @@ impl NanonisTcp {
     }
     pub async fn scan_frame_data_grab(
         &mut self,
-        channel_index: usize,
-        data_dir: usize,
+        channel_index: u32,
+        data_dir: u32,
     ) -> NanonisTcpResult<scan::FrameDataGrabResponse> {
         self.call::<scan::FrameDataGrab>(&scan::FrameDataGrabArgs {
-            channel_index: channel_index as u32,
-            data_dir: data_dir as u32,
+            channel_index,
+            data_dir,
         })
         .await
     }

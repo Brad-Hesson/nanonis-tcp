@@ -1,10 +1,8 @@
 use macro_rules_attribute::apply;
 
-use crate::{commands::Command, codec::CodecWriteDerive};
+use crate::{codec::CodecWriteDerive, commands::Command};
 
-// *********************
-// *      Set      *
-// *********************
+/// Sets the Bias voltage to the specified value.
 pub struct Set;
 impl Command for Set {
     const NAME: &'static str = "Bias.Set";

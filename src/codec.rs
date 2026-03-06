@@ -111,24 +111,18 @@ impl<T> Default for Vec2D<T> {
 }
 impl<T: CodecRead> CodecRead for Vec2D<T> {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
-        let rows = i32::codec_read(reader)?;
-        let cols = i32::codec_read(reader)?;
-        Ok(Self {
-            size: [rows, cols],
-            data: (0..rows * cols)
-                .map(|_| T::codec_read(reader))
-                .collect::<std::io::Result<_>>()?,
-        })
+        let size = [i32::codec_read(reader)?, i32::codec_read(reader)?];
+        let data = (0..size[0] * size[1])
+            .map(|_| T::codec_read(reader))
+            .collect::<std::io::Result<_>>()?;
+        Ok(Self { size, data })
     }
 }
 impl<T: CodecWrite> CodecWrite for Vec2D<T> {
     fn codec_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
         (self.size[0]).codec_write(writer)?;
         (self.size[1]).codec_write(writer)?;
-        for v in &self.data {
-            v.codec_write(writer)?;
-        }
-        Ok(())
+        self.data.iter().map(|v| v.codec_write(writer)).collect()
     }
     #[inline]
     fn codec_len(&self) -> usize {
