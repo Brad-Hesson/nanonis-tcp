@@ -47,6 +47,31 @@ impl CodecWrite for ScanDir {
     }
 }
 
+#[derive(
+    Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive, PartialEq, Eq,
+)]
+#[repr(u16)]
+pub enum ScanMovementType {
+    Forward = 0,
+    Backward = 1,
+    FrameCenter = 2,
+    StartOfScan = 3,
+}
+impl CodecWrite for ScanMovementType {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        u16::from(*self).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<u16>()
+    }
+}
+impl CodecRead for ScanMovementType {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        u16::codec_read(reader).map(|v| Self::try_from(v).unwrap())
+    }
+}
+
 impl CodecWrite for Option<Duration> {
     fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         self.map(|v| v.as_millis() as i32)
@@ -55,6 +80,21 @@ impl CodecWrite for Option<Duration> {
     }
     fn codec_len(&self) -> usize {
         size_of::<i32>()
+    }
+}
+
+impl CodecRead for bool {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        u32::codec_read(reader).map(|v| v != 0)
+    }
+}
+impl CodecWrite for bool {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        (*self as u32).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<u32>()
     }
 }
 
@@ -84,7 +124,7 @@ mod tests {
             .await
             .unwrap()
             .movement_type
-            != 3
+            != ScanMovementType::StartOfScan
         {}
         loop {
             let line_status = dbg!(
@@ -93,14 +133,14 @@ mod tests {
                     .await
                     .unwrap()
             );
-            if line_status.timeout_status == 1 {
+            if line_status.timed_out {
                 break;
             }
-            let data = nanonis.scan_frame_data_grab(30, 0).await.unwrap();
-            let width = data.scan_data.size[0] as usize;
-            let line_num = line_status.line_number as usize - 1;
-            let line = &data.scan_data.data[255..][..width];
-            println!("{:?}", line);
+            // let data = nanonis.scan_frame_data_grab(30, 0).await.unwrap();
+            // let width = data.scan_data.size[0] as usize;
+            // let line_num = line_status.line_number as usize - 1;
+            // let line = &data.scan_data.data[255..][..width];
+            // println!("{:?}", line);
         }
     }
 }

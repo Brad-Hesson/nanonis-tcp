@@ -3,7 +3,7 @@ use std::time::Duration;
 use macro_rules_attribute::apply;
 
 use crate::{
-    ActionType, ScanDir,
+    ActionType, ScanDir, ScanMovementType,
     codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
     commands::Command,
 };
@@ -36,7 +36,7 @@ impl Command for StatusGet {
 #[apply(CodecReadDerive)]
 pub struct StatusGetResponse {
     /// means that if it is 1, scan is running. If 0, scan is not running
-    pub status: u32,
+    pub running: bool,
 }
 
 /// Waits for the End-of-Scan.
@@ -56,12 +56,12 @@ pub struct WaitEndOfLineArgs {
 #[apply(CodecReadDerive)]
 pub struct WaitEndOfLineResponse {
     /// means that if it is 1, the function timed-out. If 0, it didn’t time-out
-    pub timeout_status: u32,
+    pub timed_out: bool,
     /// the line number of the last completed line
     pub line_number: i32,
     /// can be forward (0) or backward (1) while scanning, moved to the scan
     /// frame center (2), or moved to start point of the scan frame right before starting to scan (3)
-    pub movement_type: u16,
+    pub movement_type: ScanMovementType,
     /// the pass number of the last completed line (relevant when MultiPass is enabled)
     pub pass_number: i32,
 }
@@ -121,10 +121,10 @@ impl Command for PropsGet {
 pub struct PropsGetResponse {
     ///  indicates whether the scan continues or stops when a frame has been
     /// completed. 0 means Off, and 1 is On
-    pub continuous_scan: u32,
+    pub continuous_scan: bool,
     /// indicates whether the scan direction changes when a frame has been
     /// completed. 0 means Off, and 1 is On
-    pub bouncy_scan: u32,
+    pub bouncy_scan: bool,
     /// defines the save behavior when a frame has been completed. "All" saves all the
     /// future images. "Next" only saves the next frame. 0 is All, 1 is Next, and 2 means Off
     pub autosave: u32,
