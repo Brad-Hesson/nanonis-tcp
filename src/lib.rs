@@ -143,12 +143,10 @@ mod tests {
             != ScanMovementType::StartOfScan
         {}
         loop {
-            let line_status = dbg!(
-                nanonis
-                    .scan_wait_end_of_line(Some(Duration::from_millis(100)))
-                    .await
-                    .unwrap()
-            );
+            let line_status = nanonis
+                .scan_wait_end_of_line(Some(Duration::from_millis(1000)))
+                .await
+                .unwrap();
             if line_status.timed_out {
                 break;
             }
@@ -160,10 +158,11 @@ mod tests {
             let data = nanonis.scan_frame_data_grab(0, dir).await.unwrap();
             let width = data.scan_data.size[0];
             let line_number = line_status.line_number as usize;
-            println!(
-                "{:?}",
-                &data.scan_data.data[(line_number - 1) * width..][..width]
-            );
+            // println!(
+            //     "{:?}",
+            //     &data.scan_data.data[(line_number - 1) * width..][..width]
+            // );
+            println!("{:?}: {:?}", line_number, line_status.movement_type);
         }
     }
 }
