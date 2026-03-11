@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use crate::codec::{CodecRead, CodecWrite};
+use crate::{
+    codec::{CodecRead, CodecWrite},
+    commands::scan,
+};
 
 pub mod blocking;
 mod codec;
@@ -9,6 +12,8 @@ pub mod error;
 pub mod fsm;
 #[cfg(feature = "tokio")]
 pub mod nonblocking;
+#[cfg(feature = "tokio")]
+pub mod scan_watcher;
 
 #[derive(Debug, Clone, Copy, num_enum::IntoPrimitive)]
 #[repr(u16)]
@@ -47,19 +52,21 @@ impl CodecWrite for ScanDir {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive, PartialEq, Eq,
-)]
-#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanMovementType {
-    Forward = 0,
-    Backward = 1,
-    FrameCenter = 2,
-    StartOfScan = 3,
+    Scan(LineDirection),
+    FrameCenter,
+    StartOfScan,
 }
 impl CodecWrite for ScanMovementType {
     fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
-        u16::from(*self).codec_write(writer)
+        match self {
+            ScanMovementType::Scan(LineDirection::Forward) => 0u16,
+            ScanMovementType::Scan(LineDirection::Backward) => 1,
+            ScanMovementType::FrameCenter => 2,
+            ScanMovementType::StartOfScan => 3,
+        }
+        .codec_write(writer)
     }
 
     fn codec_len(&self) -> usize {
@@ -68,7 +75,13 @@ impl CodecWrite for ScanMovementType {
 }
 impl CodecRead for ScanMovementType {
     fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
-        u16::codec_read(reader).map(|v| Self::try_from(v).unwrap())
+        match u16::codec_read(reader)? {
+            0 => Ok(Self::Scan(LineDirection::Forward)),
+            1 => Ok(Self::Scan(LineDirection::Backward)),
+            2 => Ok(Self::FrameCenter),
+            3 => Ok(Self::StartOfScan),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -116,53 +129,43 @@ impl CodecWrite for usize {
 
 #[cfg(test)]
 mod tests {
-
-    use std::time::Duration;
+    use crate::scan_watcher::ScanWatcher;
 
     use super::*;
 
     #[test]
     fn blocking() {
-        let mut nanonis = blocking::NanonisTcp::new("glacier:6501").unwrap();
+        let mut nanonis = blocking::NanonisTcp::new("localhost:6501").unwrap();
         let frame = nanonis.scan_frame_get().unwrap();
         println!("{frame:?}")
     }
 
     #[tokio::test]
     async fn asink() {
-        let mut nanonis = nonblocking::NanonisTcp::new("glacier:6502").await.unwrap();
-        nanonis
-            .scan_action(ActionType::Start, ScanDir::Down)
+        console_subscriber::init();
+        let sw = ScanWatcher::new("localhost:6501", "localhost:6502", PrintCallback)
             .await
             .unwrap();
-        while nanonis
-            .scan_wait_end_of_line(Some(Duration::from_secs(1)))
-            .await
-            .unwrap()
-            .movement_type
-            != ScanMovementType::StartOfScan
-        {}
         loop {
-            let line_status = nanonis
-                .scan_wait_end_of_line(Some(Duration::from_millis(1000)))
-                .await
-                .unwrap();
-            if line_status.timed_out {
-                break;
-            }
-            let dir = match line_status.movement_type {
-                ScanMovementType::Forward => 1,
-                ScanMovementType::Backward => 0,
-                _ => unreachable!(),
-            };
-            let data = nanonis.scan_frame_data_grab(0, dir).await.unwrap();
-            let width = data.scan_data.size[0];
-            let line_number = line_status.line_number as usize;
-            // println!(
-            //     "{:?}",
-            //     &data.scan_data.data[(line_number - 1) * width..][..width]
-            // );
-            println!("{:?}: {:?}", line_number, line_status.movement_type);
+            tokio::task::yield_now().await
         }
     }
+}
+
+struct PrintCallback;
+impl scan_watcher::Callback for PrintCallback {
+    fn frame(&mut self, line_number: usize, frame: scan::FrameDataGrabResponse) {
+        println!("frame: {line_number:?} {}", frame.scan_dir);
+    }
+
+    fn start(&mut self) {
+        println!("start")
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, num_enum::IntoPrimitive)]
+pub enum LineDirection {
+    Forward = 1,
+    Backward = 0,
 }

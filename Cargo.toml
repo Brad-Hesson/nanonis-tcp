@@ -13,12 +13,12 @@ thiserror = "2.0.18"
 tokio = { version = "1.50.0", default-features = false, features = [
     "io-util",
     "net",
+    "sync",
 ], optional = true }
 
 [dev-dependencies]
+console-subscriber = "0.5.0"
 tokio = { version = "1.50.0", default-features = false, features = [
-    "io-util",
-    "net",
     "rt",
     "macros",
 ] }
