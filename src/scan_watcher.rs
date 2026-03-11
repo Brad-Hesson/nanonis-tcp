@@ -16,6 +16,8 @@ use crate::{
 pub struct ScanWatcher<C: Callback> {
     _phantom: PhantomData<C>,
     close_tx: Sender<()>,
+    channel_tx: tokio::sync::watch::Sender<u32>,
+    line_dir_tx: tokio::sync::watch::Sender<LineDir>,
 }
 impl<C: Callback + 'static> ScanWatcher<C> {
     pub async fn new(
@@ -27,12 +29,28 @@ impl<C: Callback + 'static> ScanWatcher<C> {
         let frame_tcp = NanonisTcp::new(addr2).await?;
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
         let (close_tx, close_rx) = tokio::sync::mpsc::channel::<()>(1);
+        let (channel_tx, channel_rx) = tokio::sync::watch::channel(0);
+        let (line_dir_tx, line_dir_rx) = tokio::sync::watch::channel(LineDir::Forward);
         tokio::spawn(line_worker(line_tcp, event_tx, close_rx));
-        tokio::spawn(frame_worker(frame_tcp, event_rx, callback));
+        tokio::spawn(frame_worker(
+            frame_tcp,
+            event_rx,
+            channel_rx,
+            line_dir_rx,
+            callback,
+        ));
         Ok(Self {
             _phantom: PhantomData,
             close_tx,
+            channel_tx,
+            line_dir_tx,
         })
+    }
+    pub fn set_channel(&mut self, channel: u32) {
+        self.channel_tx.send(channel).unwrap()
+    }
+    pub fn set_line_dir(&mut self, line_dir: LineDir) {
+        self.line_dir_tx.send(line_dir).unwrap()
     }
 }
 impl<C: Callback> Drop for ScanWatcher<C> {
@@ -67,6 +85,8 @@ fn line_worker(
 fn frame_worker<C: Callback>(
     mut frame_tcp: NanonisTcp,
     event_rx: UnboundedReceiver<LineEvent>,
+    channel_rx: tokio::sync::watch::Receiver<u32>,
+    line_dir_rx: tokio::sync::watch::Receiver<LineDir>,
     mut callback: C,
 ) -> impl Future<Output = ()> {
     async move {
@@ -82,8 +102,15 @@ fn frame_worker<C: Callback>(
                     line_number,
                     line_dir,
                 } => {
-                    let frame = frame_tcp.scan_frame_data_grab(0, line_dir).await.unwrap();
-                    callback.frame(line_number, frame);
+                    let requested_line_dir = *line_dir_rx.borrow();
+                    if requested_line_dir == line_dir {
+                        let channel = *channel_rx.borrow();
+                        let frame = frame_tcp
+                            .scan_frame_data_grab(channel, line_dir)
+                            .await
+                            .unwrap();
+                        callback.frame(line_number, frame);
+                    }
                 }
                 LineEvent::Start => callback.start(),
             }
@@ -123,6 +150,6 @@ impl<T> EagerPeek<T> {
 }
 
 pub trait Callback: Send {
-    fn frame(&mut self, line_number: usize, frame: FrameDataGrabResponse);
+    fn frame(&mut self, num_lines: usize, frame: FrameDataGrabResponse);
     fn start(&mut self);
 }

@@ -150,7 +150,7 @@ mod tests {
     #[tokio::test]
     async fn asink() {
         console_subscriber::init();
-        let sw = ScanWatcher::new("localhost:6501", "localhost:6502", PrintCallback)
+        let sw = ScanWatcher::new("localhost:6501", "localhost:6502", PrintCallback::new())
             .await
             .unwrap();
         loop {
@@ -159,13 +159,23 @@ mod tests {
     }
 }
 
-struct PrintCallback;
+struct PrintCallback {
+    lines: usize,
+}
+impl PrintCallback {
+    fn new() -> Self {
+        Self { lines: 0 }
+    }
+}
 impl scan_watcher::Callback for PrintCallback {
     fn frame(&mut self, line_number: usize, frame: scan::FrameDataGrabResponse) {
-        println!("frame: {line_number:?} {:?}", frame.scan_dir);
+        let new_lines = line_number - self.lines + 1;
+        self.lines = line_number + 1;
+        println!("frame: {line_number:?} {:?} {new_lines}", frame.scan_dir);
     }
 
     fn start(&mut self) {
+        self.lines = 0;
         println!("start")
     }
 }
