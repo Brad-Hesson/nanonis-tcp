@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::error::NanonisTcpResult;
 use crate::fsm::NanonisTcpFsm;
-use crate::{ActionType, ScanDir};
+use crate::{ActionType, LineDir, ScanDir};
 use crate::{commands::Command, commands::*};
 
 pub struct NanonisTcp {
@@ -48,7 +48,7 @@ impl NanonisTcp {
     pub fn scan_frame_data_grab(
         &mut self,
         channel_index: u32,
-        data_dir: u32,
+        data_dir: LineDir,
     ) -> NanonisTcpResult<scan::FrameDataGrabResponse> {
         self.call::<scan::FrameDataGrab>(&scan::FrameDataGrabArgs {
             channel_index,

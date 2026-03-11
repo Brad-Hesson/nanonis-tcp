@@ -5,7 +5,7 @@ use tokio::{
     net::{TcpStream, ToSocketAddrs},
 };
 
-use crate::{ActionType, error::NanonisTcpResult};
+use crate::{ActionType, LineDir, error::NanonisTcpResult};
 use crate::{ScanDir, fsm::NanonisTcpFsm};
 use crate::{commands::Command, commands::*};
 
@@ -52,7 +52,7 @@ impl NanonisTcp {
     pub async fn scan_frame_data_grab(
         &mut self,
         channel_index: u32,
-        data_dir: u32,
+        data_dir: LineDir,
     ) -> NanonisTcpResult<scan::FrameDataGrabResponse> {
         self.call::<scan::FrameDataGrab>(&scan::FrameDataGrabArgs {
             channel_index,

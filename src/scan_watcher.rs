@@ -9,8 +9,8 @@ use tokio::{
 };
 
 use crate::{
-    LineDirection, ScanMovementType, commands::scan::FrameDataGrabResponse,
-    error::NanonisTcpResult, nonblocking::NanonisTcp,
+    LineDir, ScanMovementType, commands::scan::FrameDataGrabResponse, error::NanonisTcpResult,
+    nonblocking::NanonisTcp,
 };
 
 pub struct ScanWatcher<C: Callback> {
@@ -82,10 +82,7 @@ fn frame_worker<C: Callback>(
                     line_number,
                     line_dir,
                 } => {
-                    let frame = frame_tcp
-                        .scan_frame_data_grab(0, line_dir.into())
-                        .await
-                        .unwrap();
+                    let frame = frame_tcp.scan_frame_data_grab(0, line_dir).await.unwrap();
                     callback.frame(line_number, frame);
                 }
                 LineEvent::Start => callback.start(),
@@ -98,7 +95,7 @@ fn frame_worker<C: Callback>(
 pub enum LineEvent {
     Line {
         line_number: usize,
-        line_dir: LineDirection,
+        line_dir: LineDir,
     },
     Start,
 }

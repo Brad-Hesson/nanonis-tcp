@@ -3,9 +3,7 @@ use std::time::Duration;
 use macro_rules_attribute::apply;
 
 use crate::{
-    ActionType, ScanDir, ScanMovementType,
-    codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
-    commands::Command,
+    ActionType, LineDir, ScanDir, ScanMovementType, codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D}, commands::Command
 };
 
 /// Starts, stops, pauses or resumes a scan.
@@ -160,7 +158,7 @@ pub struct FrameDataGrabArgs {
     /// Controller, use the Signal.NamesGet function, or check the RT Idx value in the Signals Manager module.
     pub channel_index: u32,
     /// Selects the data direction, where 1 is forward, and 0 is backward
-    pub data_dir: u32,
+    pub data_dir: LineDir,
 }
 #[derive(Debug)]
 pub struct FrameDataGrabResponse {
@@ -169,7 +167,7 @@ pub struct FrameDataGrabResponse {
     /// the scan frame data of the selected channel
     pub scan_data: Vec2D<f32>,
     /// the scan direction, where 1 is up, and 0 is down
-    pub scan_dir: u32,
+    pub scan_dir: ScanDir,
 }
 impl CodecRead for FrameDataGrabResponse {
     fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
@@ -178,7 +176,7 @@ impl CodecRead for FrameDataGrabResponse {
             .then(|| <Vec2D<f32>>::codec_read(reader))
             .transpose()?
             .unwrap_or_default();
-        let scan_dir = u32::codec_read(reader)?;
+        let scan_dir = ScanDir::codec_read(reader)?;
         Ok(Self {
             channel_name,
             scan_data,

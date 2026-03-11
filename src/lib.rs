@@ -36,11 +36,18 @@ impl CodecWrite for ActionType {
     }
 }
 
-#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive)]
+#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive)]
 #[repr(u32)]
 pub enum ScanDir {
     Down = 0,
     Up = 1,
+}
+impl CodecRead for ScanDir {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        u32::codec_read(reader)?
+            .try_into()
+            .map_err(std::io::Error::other)
+    }
 }
 impl CodecWrite for ScanDir {
     fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
@@ -54,15 +61,15 @@ impl CodecWrite for ScanDir {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanMovementType {
-    Scan(LineDirection),
+    Scan(LineDir),
     FrameCenter,
     StartOfScan,
 }
 impl CodecWrite for ScanMovementType {
     fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         match self {
-            ScanMovementType::Scan(LineDirection::Forward) => 0u16,
-            ScanMovementType::Scan(LineDirection::Backward) => 1,
+            ScanMovementType::Scan(LineDir::Forward) => 0u16,
+            ScanMovementType::Scan(LineDir::Backward) => 1,
             ScanMovementType::FrameCenter => 2,
             ScanMovementType::StartOfScan => 3,
         }
@@ -76,8 +83,8 @@ impl CodecWrite for ScanMovementType {
 impl CodecRead for ScanMovementType {
     fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
         match u16::codec_read(reader)? {
-            0 => Ok(Self::Scan(LineDirection::Forward)),
-            1 => Ok(Self::Scan(LineDirection::Backward)),
+            0 => Ok(Self::Scan(LineDir::Forward)),
+            1 => Ok(Self::Scan(LineDir::Backward)),
             2 => Ok(Self::FrameCenter),
             3 => Ok(Self::StartOfScan),
             _ => unreachable!(),
@@ -155,7 +162,7 @@ mod tests {
 struct PrintCallback;
 impl scan_watcher::Callback for PrintCallback {
     fn frame(&mut self, line_number: usize, frame: scan::FrameDataGrabResponse) {
-        println!("frame: {line_number:?} {}", frame.scan_dir);
+        println!("frame: {line_number:?} {:?}", frame.scan_dir);
     }
 
     fn start(&mut self) {
@@ -164,8 +171,26 @@ impl scan_watcher::Callback for PrintCallback {
 }
 
 #[repr(u32)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, num_enum::IntoPrimitive)]
-pub enum LineDirection {
+#[derive(
+    Debug, PartialEq, Eq, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive,
+)]
+pub enum LineDir {
     Forward = 1,
     Backward = 0,
+}
+impl CodecRead for LineDir {
+    fn codec_read(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        u32::codec_read(reader)?
+            .try_into()
+            .map_err(std::io::Error::other)
+    }
+}
+impl CodecWrite for LineDir {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        u32::from(*self).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<u32>()
+    }
 }
