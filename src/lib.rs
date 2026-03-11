@@ -36,7 +36,7 @@ impl CodecWrite for ActionType {
     }
 }
 
-#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ScanDir {
     Down = 0,
@@ -172,6 +172,7 @@ impl scan_watcher::Callback for PrintCallback {
         let new_lines = line_number - self.lines + 1;
         self.lines = line_number + 1;
         println!("frame: {line_number:?} {:?} {new_lines}", frame.scan_dir);
+        println!("{:?}", frame.scan_data.data);
     }
 
     fn start(&mut self) {
