@@ -3,7 +3,9 @@ use std::time::Duration;
 use macro_rules_attribute::apply;
 
 use crate::{
-    ActionType, LineDir, ScanDir, ScanMovementType, codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D}, commands::Command
+    ActionType, LineDir, ScanDir, ScanMovementType,
+    codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
+    commands::Command,
 };
 
 /// Starts, stops, pauses or resumes a scan.
@@ -62,6 +64,26 @@ pub struct WaitEndOfLineResponse {
     pub movement_type: ScanMovementType,
     /// the pass number of the last completed line (relevant when MultiPass is enabled)
     pub pass_number: usize,
+}
+
+/// Waits for the End-of-Scan.
+/// This function returns only when an End-of-Scan or timeout occurs (whichever occurs first).
+pub struct WaitEndOfScan;
+impl Command for WaitEndOfScan {
+    const NAME: &'static str = "Scan.WaitEndOfScan";
+    type Args = WaitEndOfScanArgs;
+    type Response = WaitEndOfScanResponse;
+}
+#[derive(Debug)]
+#[apply(CodecWriteDerive)]
+pub struct WaitEndOfScanArgs {
+    pub timeout: Option<Duration>,
+}
+#[derive(Debug)]
+#[apply(CodecReadDerive)]
+pub struct WaitEndOfScanResponse {
+    pub timed_out: bool,
+    pub file_path: String,
 }
 
 /// Returns the scan frame parameters.

@@ -30,6 +30,12 @@ impl NanonisTcp {
     ) -> NanonisTcpResult<scan::WaitEndOfLineResponse> {
         self.call::<scan::WaitEndOfLine>(&scan::WaitEndOfLineArgs { timeout })
     }
+    pub fn scan_wait_end_of_scan(
+        &mut self,
+        timeout: Option<Duration>,
+    ) -> NanonisTcpResult<scan::WaitEndOfScanResponse> {
+        self.call::<scan::WaitEndOfScan>(&scan::WaitEndOfScanArgs { timeout })
+    }
     pub fn scan_frame_get(&mut self) -> NanonisTcpResult<scan::FrameGetResponse> {
         self.call::<scan::FrameGet>(&())
     }
