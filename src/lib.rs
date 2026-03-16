@@ -36,7 +36,9 @@ impl CodecWrite for ActionType {
     }
 }
 
-#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, num_enum::IntoPrimitive, num_enum::TryFromPrimitive, PartialEq, Eq,
+)]
 #[repr(u32)]
 pub enum ScanDir {
     Down = 0,
@@ -140,6 +142,30 @@ mod tests {
 
     use super::*;
 
+    #[tokio::test]
+    async fn scan_monitor() {
+        let mut line_tcp = nonblocking::NanonisTcp::new("localhost:6501")
+            .await
+            .unwrap();
+        let mut scan_tcp = nonblocking::NanonisTcp::new("localhost:6502")
+            .await
+            .unwrap();
+        tokio::spawn(async move {
+            loop {
+                let resp = line_tcp.scan_wait_end_of_line(None).await.unwrap();
+                println!("{:?}", resp);
+            }
+        });
+        tokio::spawn(async move {
+            loop {
+                let resp = scan_tcp.scan_wait_end_of_scan(None).await.unwrap();
+                println!("{:?}", resp);
+            }
+        });
+        loop {
+            tokio::task::yield_now().await;
+        }
+    }
     #[test]
     fn blocking() {
         let mut nanonis = blocking::NanonisTcp::new("localhost:6501").unwrap();
