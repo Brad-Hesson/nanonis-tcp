@@ -96,7 +96,7 @@ impl<T: CodecWrite> CodecWrite for Vec<T> {
         size_of::<i32>() + self.iter().map(T::codec_len).sum::<usize>()
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vec2D<T> {
     pub size: [usize; 2],
     pub data: Vec<T>,

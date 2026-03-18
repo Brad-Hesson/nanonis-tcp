@@ -182,7 +182,7 @@ pub struct FrameDataGrabArgs {
     /// Selects the data direction, where 1 is forward, and 0 is backward
     pub data_dir: LineDir,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FrameDataGrabResponse {
     /// the name of the channel selected by Channel index
     pub channel_name: String,
