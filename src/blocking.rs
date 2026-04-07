@@ -39,6 +39,22 @@ impl NanonisTcp {
     ) -> NanonisTcpResult<scan::WaitEndOfScanResponse> {
         self.call::<scan::WaitEndOfScan>(&scan::WaitEndOfScanArgs { timeout })
     }
+    pub fn scan_frame_set(
+        &mut self,
+        center_x: f32,
+        center_y: f32,
+        width: f32,
+        height: f32,
+        angle: f32,
+    ) -> NanonisTcpResult<()> {
+        self.call::<scan::FrameSet>(&scan::FrameSetArgs {
+            center_x,
+            center_y,
+            width,
+            height,
+            angle,
+        })
+    }
     pub fn scan_frame_get(&mut self) -> NanonisTcpResult<scan::FrameGetResponse> {
         self.call::<scan::FrameGet>(&())
     }
@@ -64,7 +80,7 @@ impl NanonisTcp {
             data_dir,
         })
     }
-    fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
+    pub fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
         let fsm = NanonisTcpFsm::<C>::new(&mut self.buf, args)?;
         self.stream.write_all(fsm.bytes())?;
         self.stream.flush()?;

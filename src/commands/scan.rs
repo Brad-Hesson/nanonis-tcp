@@ -108,6 +108,28 @@ pub struct FrameGetResponse {
     pub angle: f32,
 }
 
+/// Configures the scan frame parameters.
+pub struct FrameSet;
+impl Command for FrameSet {
+    const NAME: &'static str = "Scan.FrameSet";
+    type Args = FrameSetArgs;
+    type Response = ();
+}
+#[derive(Debug)]
+#[apply(CodecWriteDerive)]
+pub struct FrameSetArgs {
+    /// the X position of the scan frame center
+    pub center_x: f32,
+    /// the Y position of the scan frame center
+    pub center_y: f32,
+    /// the width of the scan frame
+    pub width: f32,
+    /// the height of the scan frame
+    pub height: f32,
+    /// the angle of the scan frame (positive angle means clockwise rotation)
+    pub angle: f32,
+}
+
 /// Returns the scan buffer parameters.
 pub struct BufferGet;
 impl Command for BufferGet {
