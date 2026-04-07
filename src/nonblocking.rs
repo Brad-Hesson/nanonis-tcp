@@ -20,6 +20,9 @@ impl NanonisTcp {
             buf: Vec::new(),
         })
     }
+    pub async fn piezo_range_get(&mut self) -> NanonisTcpResult<piezo::RangeGetResponse> {
+        self.call::<piezo::RangeGet>(&()).await
+    }
     pub async fn scan_action(&mut self, action: ActionType, dir: ScanDir) -> NanonisTcpResult<()> {
         self.call::<scan::Action>(&scan::ActionArgs { action, dir })
             .await

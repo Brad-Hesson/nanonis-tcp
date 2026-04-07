@@ -18,6 +18,9 @@ impl NanonisTcp {
             buf: Vec::new(),
         })
     }
+    pub fn piezo_range_get(&mut self) -> NanonisTcpResult<piezo::RangeGetResponse> {
+        self.call::<piezo::RangeGet>(&())
+    }
     pub fn scan_action(&mut self, action: ActionType, dir: ScanDir) -> NanonisTcpResult<()> {
         self.call::<scan::Action>(&scan::ActionArgs { action, dir })
     }
