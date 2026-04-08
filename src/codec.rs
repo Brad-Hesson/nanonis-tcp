@@ -179,7 +179,6 @@ impl Header {
 }
 
 #[derive(Debug)]
-#[apply(CodecReadDerive)]
 pub(crate) struct Footer {
     pub status: u32,
     pub description: String,
@@ -189,6 +188,28 @@ impl Footer {
         match self.status {
             0 => Ok(()),
             _ => Err(NanonisTcpError::Api(self.description)),
+        }
+    }
+}
+impl CodecRead for Footer {
+    fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
+        let status = u32::codec_read(reader)?;
+        let mut description = String::codec_read(reader)?;
+        newline_replace(&mut description);
+        Ok(Self {
+            status,
+            description,
+        })
+    }
+}
+fn newline_replace(string: &mut String) {
+    // Safety:
+    // we are replacing bytes which are guaranteed to be single byte codepoints
+    // with spaces, which are also single byte codepoints.  Thus, the string
+    // remains valid utf-8
+    for byte in unsafe { string.as_bytes_mut() } {
+        if *byte == b'\n' || *byte == b'\r' {
+            *byte = b' ';
         }
     }
 }
