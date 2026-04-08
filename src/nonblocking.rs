@@ -64,6 +64,13 @@ impl NanonisTcp {
     pub async fn scan_frame_get(&mut self) -> NanonisTcpResult<scan::FrameGetResponse> {
         self.call::<scan::FrameGet>(&()).await
     }
+    pub async fn scan_xy_pos_get(
+        &mut self,
+        wait_newest: bool,
+    ) -> NanonisTcpResult<scan::XYPosGetResponse> {
+        self.call::<scan::XYPosGet>(&scan::XYPosGetArgs { wait_newest })
+            .await
+    }
     pub async fn bias_set(&mut self, bias: f32) -> NanonisTcpResult<()> {
         self.call::<bias::Set>(&bias::SetArgs { bias }).await
     }
