@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     codec::{CodecRead, CodecWrite, Footer, Header},
     commands::Command,
-    error::{NanonisTcpResult, ParseError},
+    error::{CodecError, NanonisTcpResult},
 };
 
 pub struct HasArgs;
@@ -25,9 +25,8 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C> {
         let expected = buf_view.len();
         header.codec_write(&mut buf_view)?;
         args.codec_write(&mut buf_view)?;
-        assert!(buf_view.is_empty());
         if !buf_view.is_empty() {
-            Err(ParseError::WriteLenMismatch {
+            Err(CodecError::WriteLenMismatch {
                 expected,
                 wrote: expected - buf_view.len(),
             })?;
@@ -39,7 +38,7 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C> {
     }
 }
 impl<'b, C: Command> NanonisTcpFsm<'b, C, HasArgs> {
-    pub fn bytes(&self) -> &[u8] {
+    pub fn bytes_to_write(&self) -> &[u8] {
         self.buf.as_slice()
     }
     pub fn prepare_for_header(self) -> NanonisTcpResult<NanonisTcpFsm<'b, C, WantsHeader>> {
@@ -51,13 +50,13 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C, HasArgs> {
     }
 }
 impl<'b, C: Command> NanonisTcpFsm<'b, C, WantsHeader> {
-    pub fn bytes_mut(&mut self) -> &mut [u8] {
+    pub fn bytes_to_read_mut(&mut self) -> &mut [u8] {
         self.buf.as_mut_slice()
     }
     pub fn prepare_for_body(self) -> NanonisTcpResult<NanonisTcpFsm<'b, C, WantsBody>> {
         let header = Header::codec_read(&mut self.buf.as_slice())?;
         if header.name.inner != C::NAME {
-            Err(ParseError::NameMismatch {
+            Err(CodecError::NameMismatch {
                 expected: C::NAME.into(),
                 received: header.name.inner.into(),
             })?;
@@ -70,7 +69,7 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C, WantsHeader> {
     }
 }
 impl<C: Command> NanonisTcpFsm<'_, C, WantsBody> {
-    pub fn bytes_mut(&mut self) -> &mut [u8] {
+    pub fn bytes_to_read_mut(&mut self) -> &mut [u8] {
         self.buf.as_mut_slice()
     }
     pub fn parse_response(self) -> NanonisTcpResult<C::Response> {
@@ -79,7 +78,7 @@ impl<C: Command> NanonisTcpFsm<'_, C, WantsBody> {
         let response = C::Response::codec_read(&mut body_view)?;
         Footer::codec_read(&mut body_view)?.into_result()?;
         if !body_view.is_empty() {
-            Err(ParseError::ReadLenMismatch {
+            Err(CodecError::ReadLenMismatch {
                 expected,
                 parsed: expected - body_view.len(),
             })?;

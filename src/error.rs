@@ -2,16 +2,16 @@
 pub enum NanonisTcpError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("api error: {0}")]
+    #[error("nanonis api error: {0}")]
     Api(String),
-    #[error("parse error: {0}")]
-    Parse(#[from] ParseError),
+    #[error("codec error: {0}")]
+    Codec(#[from] CodecError),
 }
 
 pub type NanonisTcpResult<T> = std::result::Result<T, NanonisTcpError>;
 
 #[derive(Debug, thiserror::Error)]
-pub enum ParseError {
+pub enum CodecError {
     #[error("wrong command name received: expected `{expected}` but got `{received}`")]
     NameMismatch { expected: String, received: String },
     #[error("did not parse all received bytes: expected `{expected}` but parsed `{parsed}`")]

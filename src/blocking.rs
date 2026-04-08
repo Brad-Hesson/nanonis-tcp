@@ -88,12 +88,12 @@ impl NanonisTcp {
     }
     pub fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
         let fsm = NanonisTcpFsm::<C>::new(&mut self.buf, args)?;
-        self.stream.write_all(fsm.bytes())?;
+        self.stream.write_all(fsm.bytes_to_write())?;
         self.stream.flush()?;
         let mut fsm = fsm.prepare_for_header()?;
-        self.stream.read_exact(fsm.bytes_mut())?;
+        self.stream.read_exact(fsm.bytes_to_read_mut())?;
         let mut fsm = fsm.prepare_for_body()?;
-        self.stream.read_exact(fsm.bytes_mut())?;
+        self.stream.read_exact(fsm.bytes_to_read_mut())?;
         fsm.parse_response()
     }
 }
