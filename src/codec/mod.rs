@@ -133,7 +133,7 @@ pub(crate) struct Header {
     _pad: u16,
 }
 impl Header {
-    pub fn new_for_command<C: Command>(body_len: usize) -> Self {
+    pub const fn new_for_command<C: Command>(body_len: usize) -> Self {
         Self {
             name: const { FixedString::<32>::new_command_name::<C>() },
             body_len: body_len as i32,
