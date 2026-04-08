@@ -2,9 +2,9 @@ use std::io::{Read as _, Write as _};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
+use crate::codec::{ActionType, LineDir, ScanDir};
 use crate::error::NanonisTcpResult;
 use crate::fsm::NanonisTcpFsm;
-use crate::{ActionType, LineDir, ScanDir};
 use crate::{commands::Command, commands::*};
 
 pub struct NanonisTcp {

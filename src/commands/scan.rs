@@ -3,8 +3,10 @@ use std::time::Duration;
 use macro_rules_attribute::apply;
 
 use crate::{
-    ActionType, LineDir, ScanDir, ScanMovementType,
-    codec::{CodecRead, CodecReadDerive, CodecWriteDerive, Vec2D},
+    codec::{
+        ActionType, CodecRead, CodecReadDerive, CodecWriteDerive, LineDir, ScanDir,
+        ScanMovementType, Vec2D,
+    },
     commands::Command,
 };
 

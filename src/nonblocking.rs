@@ -5,9 +5,12 @@ use tokio::{
     net::{TcpStream, ToSocketAddrs},
 };
 
-use crate::{ActionType, LineDir, error::NanonisTcpResult};
-use crate::{ScanDir, fsm::NanonisTcpFsm};
-use crate::{commands::Command, commands::*};
+use crate::{
+    codec::{ActionType, LineDir, ScanDir},
+    commands::{Command, *},
+    error::NanonisTcpResult,
+    fsm::NanonisTcpFsm,
+};
 
 pub struct NanonisTcp {
     stream: TcpStream,

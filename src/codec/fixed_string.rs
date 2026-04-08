@@ -23,9 +23,6 @@ impl<const N: usize> Deref for FixedString<N> {
     }
 }
 impl<const N: usize> FixedString<N> {
-    pub fn to_string(self) -> String {
-        self.deref().into()
-    }
     pub const fn new_command_name<C: Command>() -> Self {
         let len = C::NAME.len();
         assert!(len <= N);
