@@ -19,7 +19,7 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C> {
         buf: &'b mut Vec<u8>,
         args: &C::Args,
     ) -> NanonisTcpResult<NanonisTcpFsm<'b, C, HasArgs>> {
-        let header = Header::new(C::NAME, args.codec_len());
+        let header = Header::new_for_command::<C>(args.codec_len());
         buf.resize(header.codec_len() + header.body_len as usize, 0);
         let mut buf_view = buf.as_mut_slice();
         let expected = buf_view.len();
@@ -55,10 +55,10 @@ impl<'b, C: Command> NanonisTcpFsm<'b, C, WantsHeader> {
     }
     pub fn prepare_for_body(self) -> NanonisTcpResult<NanonisTcpFsm<'b, C, WantsBody>> {
         let header = Header::codec_read(&mut self.buf.as_slice())?;
-        if header.name.inner != C::NAME {
+        if &*header.name != C::NAME {
             Err(CodecError::NameMismatch {
                 expected: C::NAME.into(),
-                received: header.name.inner.into(),
+                received: header.name.to_string(),
             })?;
         }
         self.buf.resize(header.body_len as usize, 0u8);

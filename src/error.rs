@@ -18,4 +18,6 @@ pub enum CodecError {
     ReadLenMismatch { expected: usize, parsed: usize },
     #[error("did not write full buffer: expected `{expected}` but wrote `{wrote}`")]
     WriteLenMismatch { expected: usize, wrote: usize },
+    #[error("tried to create a fixed string of `{string}` that exceed the max length `{maximum}`")]
+    StringTooLong { maximum: usize, string: String },
 }

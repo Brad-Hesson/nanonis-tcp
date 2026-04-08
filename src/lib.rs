@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use crate::{
-    codec::{CodecRead, CodecWrite},
-    commands::scan,
-};
+use crate::codec::{CodecRead, CodecWrite};
 
 pub mod blocking;
 mod codec;
@@ -89,7 +86,9 @@ impl CodecRead for ScanMovementType {
             1 => Ok(Self::Scan(LineDir::Backward)),
             2 => Ok(Self::FrameCenter),
             3 => Ok(Self::StartOfScan),
-            _ => unreachable!(),
+            n => Err(std::io::Error::other(format!(
+                "got invalid ScanMovementType value '{n}'"
+            ))),
         }
     }
 }

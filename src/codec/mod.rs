@@ -1,7 +1,11 @@
 use std::{
     borrow::Cow,
     io::{Read, Write},
+    ops::Deref,
 };
+
+mod fixed_string;
+pub use fixed_string::FixedString;
 
 pub trait CodecRead: Sized {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self>;
@@ -120,46 +124,18 @@ impl<T: CodecWrite> CodecWrite for Vec2D<T> {
 }
 
 #[derive(Debug)]
-pub struct FixedString<'s, const N: usize> {
-    pub inner: Cow<'s, str>,
-}
-impl<const N: usize> CodecRead for FixedString<'_, N> {
-    fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
-        let mut name_buf = [0u8; N];
-        reader.read_exact(&mut name_buf)?;
-        let name_len = name_buf.iter().position(|b| *b == 0).unwrap_or(N);
-        let name = str::from_utf8(&name_buf[..name_len])
-            .map_err(std::io::Error::other)?
-            .to_string();
-        Ok(Self { inner: name.into() })
-    }
-}
-impl<const N: usize> CodecWrite for FixedString<'_, N> {
-    fn codec_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
-        let mut name_buf = [0u8; N];
-        name_buf[0..self.inner.len()].copy_from_slice(self.inner.as_bytes());
-        writer.write_all(&name_buf)?;
-        Ok(())
-    }
-
-    fn codec_len(&self) -> usize {
-        N
-    }
-}
-
-#[derive(Debug)]
 #[apply(CodecReadDerive)]
 #[apply(CodecWriteDerive)]
 pub(crate) struct Header {
-    pub name: FixedString<'static, 32>,
+    pub name: FixedString<32>,
     pub body_len: i32,
     pub response: u16,
     _pad: u16,
 }
 impl Header {
-    pub fn new(name: &'static str, body_len: usize) -> Self {
+    pub fn new_for_command<C: Command>(body_len: usize) -> Self {
         Self {
-            name: FixedString { inner: name.into() },
+            name: const { FixedString::<32>::new_command_name::<C>() },
             body_len: body_len as i32,
             response: 1,
             _pad: 0,
@@ -169,26 +145,31 @@ impl Header {
 
 #[derive(Debug)]
 pub(crate) struct Footer {
-    pub status: u32,
-    pub description: String,
+    pub description: Option<String>,
 }
 impl Footer {
     pub fn into_result(self) -> NanonisTcpResult<()> {
-        match self.status {
-            0 => Ok(()),
-            _ => Err(NanonisTcpError::Api(self.description)),
+        match self.description {
+            Some(desc) => Err(NanonisTcpError::Api(desc)),
+            None => Ok(()),
         }
     }
 }
 impl CodecRead for Footer {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {
         let status = u32::codec_read(reader)?;
-        let mut description = String::codec_read(reader)?;
-        newline_replace(&mut description);
-        Ok(Self {
-            status,
-            description,
-        })
+        let description = match status {
+            0 => {
+                let _ = i32::codec_read(reader)?;
+                None
+            }
+            _ => {
+                let mut desc = String::codec_read(reader)?;
+                newline_replace(&mut desc);
+                Some(desc)
+            }
+        };
+        Ok(Self { description })
     }
 }
 fn newline_replace(string: &mut String) {
@@ -270,4 +251,7 @@ macro_rules! CodecReadDerive {
 pub(crate) use CodecReadDerive;
 use macro_rules_attribute::apply;
 
-use crate::error::{NanonisTcpError, NanonisTcpResult};
+use crate::{
+    commands::Command,
+    error::{CodecError, NanonisTcpError, NanonisTcpResult},
+};
