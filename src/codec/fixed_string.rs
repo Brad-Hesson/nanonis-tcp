@@ -27,14 +27,11 @@ impl<const N: usize> FixedString<N> {
         self.deref().into()
     }
     pub const fn new_command_name<C: Command>() -> Self {
-        let len = const { C::NAME.len() };
-        let bytes = const {
-            assert!(C::NAME.len() <= N);
-            let mut bytes = [0u8; N];
-            let (string_part, _) = bytes.split_at_mut(C::NAME.len());
-            string_part.copy_from_slice(C::NAME.as_bytes());
-            bytes
-        };
+        let len = C::NAME.len();
+        assert!(len <= N);
+        let mut bytes = [0u8; N];
+        let (string_part, _) = bytes.split_at_mut(len);
+        string_part.copy_from_slice(C::NAME.as_bytes());
         Self { len, bytes }
     }
 }
