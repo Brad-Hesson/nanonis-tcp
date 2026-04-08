@@ -73,16 +73,17 @@ impl<C: Command> NanonisTcpFsm<'_, C, WantsBody> {
         self.buf.as_mut_slice()
     }
     pub fn parse_response(self) -> NanonisTcpResult<C::Response> {
-        let mut body_view = self.buf.as_slice();
-        let expected = body_view.len();
-        let response = C::Response::codec_read(&mut body_view)?;
-        Footer::codec_read(&mut body_view)?.into_result()?;
-        if !body_view.is_empty() {
+        let mut response_bytes = self.buf.as_slice();
+        let expected = response_bytes.len();
+        let response = C::Response::codec_read(&mut response_bytes)?;
+        let footer = Footer::codec_read(&mut response_bytes)?;
+        if !response_bytes.is_empty() {
             Err(CodecError::ReadLenMismatch {
                 expected,
-                parsed: expected - body_view.len(),
+                parsed: expected - response_bytes.len(),
             })?;
         }
+        footer.into_result()?;
         Ok(response)
     }
 }

@@ -86,28 +86,17 @@ impl<T: CodecRead> CodecRead for Vec<T> {
 impl<T: CodecWrite> CodecWrite for Vec<T> {
     fn codec_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
         (self.len() as i32).codec_write(writer)?;
-        for v in self {
-            v.codec_write(writer)?;
-        }
-        Ok(())
+        self.iter().map(|v| v.codec_write(writer)).collect()
     }
     #[inline]
     fn codec_len(&self) -> usize {
         size_of::<i32>() + self.iter().map(T::codec_len).sum::<usize>()
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Vec2D<T> {
     pub size: [usize; 2],
     pub data: Vec<T>,
-}
-impl<T> Default for Vec2D<T> {
-    fn default() -> Self {
-        Self {
-            size: Default::default(),
-            data: Vec::new(),
-        }
-    }
 }
 impl<T: CodecRead> CodecRead for Vec2D<T> {
     fn codec_read(reader: &mut impl Read) -> std::io::Result<Self> {

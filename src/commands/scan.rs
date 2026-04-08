@@ -61,7 +61,7 @@ pub struct XYPosGetResponse {
     pub y_pos: f32,
 }
 
-/// Waits for the End-of-Scan.
+/// Waits for the End-of-Line.
 /// This function returns only when an End-of-Line or timeout occurs (whichever occurs first).
 pub struct WaitEndOfLine;
 impl Command for WaitEndOfLine {
