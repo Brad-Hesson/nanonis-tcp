@@ -118,3 +118,23 @@ impl CodecWrite for LineDir {
         size_of::<u32>()
     }
 }
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive)]
+pub enum MotorDir {
+    XPos = 0,
+    XNeg = 1,
+    YPos = 2,
+    YNeg = 3,
+    ZPos = 4,
+    ZNeg = 5,
+}
+impl CodecWrite for MotorDir{
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        u32::from(*self).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<u32>()
+    }
+}

@@ -2,6 +2,7 @@ use std::io::{Read as _, Write as _};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
+use crate::MotorDir;
 use crate::codec::{ActionType, LineDir, ScanDir};
 use crate::error::NanonisTcpResult;
 use crate::fsm::NanonisTcpFsm;
@@ -84,6 +85,20 @@ impl NanonisTcp {
         self.call::<scan::FrameDataGrab>(&scan::FrameDataGrabArgs {
             channel_index,
             data_dir,
+        })
+    }
+    pub fn motor_start_move(
+        &mut self,
+        dir: MotorDir,
+        num_steps: u16,
+        group: u32,
+        blocking: bool,
+    ) -> NanonisTcpResult<()> {
+        self.call::<motor::StartMove>(&motor::StartMoveArgs {
+            dir,
+            num_steps,
+            group,
+            blocking,
         })
     }
     pub fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {

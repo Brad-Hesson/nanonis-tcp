@@ -6,6 +6,7 @@ use tokio::{
 };
 
 use crate::{
+    MotorDir,
     codec::{ActionType, LineDir, ScanDir},
     commands::{Command, *},
     error::NanonisTcpResult,
@@ -94,6 +95,21 @@ impl NanonisTcp {
         self.call::<scan::FrameDataGrab>(&scan::FrameDataGrabArgs {
             channel_index,
             data_dir,
+        })
+        .await
+    }
+    pub async fn motor_start_move(
+        &mut self,
+        dir: MotorDir,
+        num_steps: u16,
+        group: u32,
+        blocking: bool,
+    ) -> NanonisTcpResult<()> {
+        self.call::<motor::StartMove>(&motor::StartMoveArgs {
+            dir,
+            num_steps,
+            group,
+            blocking,
         })
         .await
     }
