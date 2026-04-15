@@ -120,7 +120,7 @@ impl CodecWrite for LineDir {
 }
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive)]
+#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, PartialEq, Eq)]
 pub enum MotorDir {
     XPos = 0,
     XNeg = 1,
@@ -129,12 +129,30 @@ pub enum MotorDir {
     ZPos = 4,
     ZNeg = 5,
 }
-impl CodecWrite for MotorDir{
+impl CodecWrite for MotorDir {
     fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         u32::from(*self).codec_write(writer)
     }
 
     fn codec_len(&self) -> usize {
         size_of::<u32>()
+    }
+}
+
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, num_enum::IntoPrimitive, PartialEq, Eq)]
+pub enum MotorAxis {
+    Default = 0,
+    X = 1,
+    Y = 2,
+    Z = 3,
+}
+impl CodecWrite for MotorAxis {
+    fn codec_write(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        u16::from(*self).codec_write(writer)
+    }
+
+    fn codec_len(&self) -> usize {
+        size_of::<u16>()
     }
 }

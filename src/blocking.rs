@@ -2,10 +2,10 @@ use std::io::{Read as _, Write as _};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-use crate::MotorDir;
 use crate::codec::{ActionType, LineDir, ScanDir};
 use crate::error::NanonisTcpResult;
 use crate::fsm::NanonisTcpFsm;
+use crate::{MotorAxis, MotorDir};
 use crate::{commands::Command, commands::*};
 
 pub struct NanonisTcp {
@@ -100,6 +100,12 @@ impl NanonisTcp {
             group,
             blocking,
         })
+    }
+    pub fn motor_freq_amp_get(
+        &mut self,
+        axis: MotorAxis,
+    ) -> NanonisTcpResult<motor::FreqAmpGetResponse> {
+        self.call::<motor::FreqAmpGet>(&motor::FreqAmpGetArgs { axis })
     }
     pub fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
         let fsm = NanonisTcpFsm::<C>::new(&mut self.buf, args)?;

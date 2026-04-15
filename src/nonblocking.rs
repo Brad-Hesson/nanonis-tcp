@@ -6,7 +6,7 @@ use tokio::{
 };
 
 use crate::{
-    MotorDir,
+    MotorAxis, MotorDir,
     codec::{ActionType, LineDir, ScanDir},
     commands::{Command, *},
     error::NanonisTcpResult,
@@ -112,6 +112,13 @@ impl NanonisTcp {
             blocking,
         })
         .await
+    }
+    pub async fn motor_freq_amp_get(
+        &mut self,
+        axis: MotorAxis,
+    ) -> NanonisTcpResult<motor::FreqAmpGetResponse> {
+        self.call::<motor::FreqAmpGet>(&motor::FreqAmpGetArgs { axis })
+            .await
     }
     pub async fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
         let fsm = NanonisTcpFsm::<C>::new(&mut self.buf, args)?;

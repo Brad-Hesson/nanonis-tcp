@@ -1,6 +1,6 @@
 use macro_rules_attribute::apply;
 
-use crate::{CodecWriteDerive, MotorDir, commands::Command};
+use crate::{CodecReadDerive, CodecWriteDerive, MotorAxis, MotorDir, commands::Command};
 
 /// Moves the coarse positioning device (motor, piezo actuator...).
 pub struct StartMove;
@@ -24,4 +24,24 @@ pub struct StartMoveArgs {
     /// defines if this function only returns when the motor reaches
     /// its destination
     pub blocking: bool,
+}
+
+/// Returns the frequency (Hz) and amplitude (V) of the motor control module.
+/// This function is only available for PD5, PMD4, and Attocube ANC150 devices.
+pub struct FreqAmpGet;
+impl Command for FreqAmpGet {
+    const NAME: &'static str = "Motor.FreqAmpGet";
+    type Args = FreqAmpGetArgs;
+    type Response = FreqAmpGetResponse;
+}
+#[derive(Debug)]
+#[apply(CodecWriteDerive)]
+pub struct FreqAmpGetArgs {
+    pub axis: MotorAxis,
+}
+#[derive(Debug)]
+#[apply(CodecReadDerive)]
+pub struct FreqAmpGetResponse {
+    pub frequency: f32,
+    pub amplitude: f32,
 }
