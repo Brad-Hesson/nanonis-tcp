@@ -182,6 +182,7 @@ impl Command for PropsGet {
     type Args = ();
     type Response = PropsGetResponse;
 }
+#[cfg(feature = "v5e")]
 #[apply(CodecReadDerive)]
 #[derive(Debug)]
 pub struct PropsGetResponse {
@@ -206,6 +207,24 @@ pub struct PropsGetResponse {
     /// returns the parameters that are going to be saved in the header of the image
     /// files. Each row of parameters belongs to a different module.
     pub parameters: Vec2D<String>,
+}
+#[cfg(not(feature = "v5e"))]
+#[apply(CodecReadDerive)]
+#[derive(Debug)]
+pub struct PropsGetResponse {
+    ///  indicates whether the scan continues or stops when a frame has been
+    /// completed. 0 means Off, and 1 is On
+    pub continuous_scan: bool,
+    /// indicates whether the scan direction changes when a frame has been
+    /// completed. 0 means Off, and 1 is On
+    pub bouncy_scan: bool,
+    /// defines the save behavior when a frame has been completed. "All" saves all the
+    /// future images. "Next" only saves the next frame. 0 is All, 1 is Next, and 2 means Off
+    pub autosave: u32,
+    /// base name used for the saved images
+    pub series_name: String,
+    /// comment saved in the file
+    pub comment: String,
 }
 
 /// Returns the scan data of the selected frame.
@@ -250,5 +269,19 @@ impl CodecRead for FrameDataGrabResponse {
             scan_data,
             scan_dir,
         })
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::blocking::NanonisTcp;
+
+    use super::*;
+
+    #[test]
+    fn props_get() {
+        let mut conn = NanonisTcp::new("localhost:6501").unwrap();
+        dbg!(conn.scan_props_get());
     }
 }

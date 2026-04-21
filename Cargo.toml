@@ -5,6 +5,7 @@ edition = "2024"
 
 [features]
 tokio = ["dep:tokio"]
+v5e = []
 
 [dependencies]
 macro_rules_attribute = "0.2.2"
