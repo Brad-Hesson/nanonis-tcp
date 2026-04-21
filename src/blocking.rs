@@ -65,6 +65,12 @@ impl NanonisTcp {
     ) -> NanonisTcpResult<scan::XYPosGetResponse> {
         self.call::<scan::XYPosGet>(&scan::XYPosGetArgs { wait_newest })
     }
+    pub fn fol_me_xy_pos_get(
+        &mut self,
+        wait_newest: bool,
+    ) -> NanonisTcpResult<fol_me::XYPosGetResponse> {
+        self.call::<fol_me::XYPosGet>(&fol_me::XYPosGetArgs { wait_newest })
+    }
     pub fn bias_set(&mut self, bias: f32) -> NanonisTcpResult<()> {
         self.call::<bias::Set>(&bias::SetArgs { bias })
     }
