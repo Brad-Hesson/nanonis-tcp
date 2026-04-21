@@ -271,17 +271,3 @@ impl CodecRead for FrameDataGrabResponse {
         })
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use crate::blocking::NanonisTcp;
-
-    use super::*;
-
-    #[test]
-    fn props_get() {
-        let mut conn = NanonisTcp::new("localhost:6501").unwrap();
-        dbg!(conn.scan_props_get());
-    }
-}
