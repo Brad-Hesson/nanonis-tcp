@@ -127,6 +127,21 @@ impl NanonisTcp {
         self.call::<motor::FreqAmpGet>(&motor::FreqAmpGetArgs { axis })
             .await
     }
+    pub async fn zctrl_withdraw(
+        &mut self,
+        wait_finished: bool,
+        timeout: Option<Duration>,
+    ) -> NanonisTcpResult<()> {
+        self.call::<zctrl::Withdraw>(&zctrl::WithdrawArgs {
+            wait_finished,
+            timeout,
+        })
+        .await
+    }
+    pub async fn zctrl_onoffset(&mut self, status: bool) -> NanonisTcpResult<()> {
+        self.call::<zctrl::OnOffSet>(&zctrl::OnOffSetArgs { status })
+            .await
+    }
     pub async fn call<C: Command>(&mut self, args: &C::Args) -> NanonisTcpResult<C::Response> {
         let fsm = NanonisTcpFsm::<C>::new(&mut self.buf, args)?;
         self.stream.write_all(fsm.bytes_to_write()).await?;
